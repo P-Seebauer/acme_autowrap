@@ -11,6 +11,7 @@ use 5.01;
 use strict;
 use warnings;
 use Carp qw (croak carp);
+use Module::Runtime qw(require_module);
 
 my %packages;
 my $DEBUG = $ENV{DEBUG};
@@ -18,6 +19,7 @@ my $DEBUG = $ENV{DEBUG};
 sub DEBUG(&){
   $_[0]->() if $DEBUG;
 }
+
 
 sub import{
   shift; # remove the package name from argument list
@@ -34,8 +36,14 @@ ERR
     }
     croak "Didn't know what to do with your filter `$filter'" unless defined $f_sub;
 
-    $w_sub=$wrapper if ref $wrapper eq 'CODE';
-    croak "Didn't know what to do with your filter `$filter'" unless defined $w_sub;
+    if (ref $wrapper eq 'CODE') {
+      $w_sub=$wrapper;
+    }elsif(ref $wrapper eq ''){
+      require_module "ACME::Autowrap::${wrapper}";
+      my $wrapper="ACME::Autowrap::${wrapper}"->new;
+      $w_sub=$wrapper;
+    }
+    croak "Didn't know what to do with your wrapper `$wrapper'" unless defined $w_sub;
     push @subs,$f_sub, $w_sub;
   }
   $packages{(caller) [0]}= \@subs;
@@ -63,10 +71,14 @@ INIT {
 	for(my $i=0;$i<@$arg;$i+=2){
 	  my ($filter,$wrapper)=($arg->[$i],$arg->[$i+1]);
 	  if($filter->($key)){
-	    $oldsub //= &_make_cref($full_name);
-	    {local($^W);
-	     no warnings;
-	     *{$full_name}=sub{$wrapper->($oldsub,@_)}
+	    if(ref $wrapper eq 'CODE' or $wrapper->is_run_time_wrap){
+	      $oldsub //= &_make_cref($full_name);
+	      {local($^W);
+	       no warnings;
+	       *{$full_name}=sub{$wrapper->($oldsub,@_)}
+	     }
+	    }else{
+	      $wrapper->wrap($full_name,$val);
 	    }
 	  }
 	}
@@ -76,5 +88,5 @@ INIT {
 }
 
 
-
 "oh yeah, that's a nice package";
+
