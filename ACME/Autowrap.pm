@@ -57,10 +57,17 @@ INIT {
       # iterate over the symboltable of that package
       local *ENTRY = $val;
       if (defined $val and defined *ENTRY{CODE}){
+	# we found a subroutine
+	my $oldsub;
+	my $full_name="$_\::$key";
 	for(my $i=0;$i<@$arg;$i+=2){
+	  my ($filter,$wrapper)=($arg[$i],$arg[$i+1]);
 	  if($arg[0]->($key)){
-	    $oldsub = _make_cref("$_\::$key");
-	    
+	    $oldsub //= &_make_cref($full_name);
+	    {local($^W);
+	     no warnings;
+	     *{$full_name}=sub{$wrapper->($oldsub,@_)}
+	    }
 	  }
 	}
       }
