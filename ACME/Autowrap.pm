@@ -51,18 +51,18 @@ INIT {
 	print "$_ \t|", @{$packages{$_}},"\n" foreach keys %packages
       };
   my %functions;
-  while (my ($_,$arg) = each %packages){
+  while (my ($package,$arg) = each %packages){
     no strict 'refs';
-    while(my ($key,$val) = each %{*{"$_\::"}}){
+    while(my ($key,$val) = each %{*{"$package\::"}}){
       # iterate over the symboltable of that package
       local *ENTRY = $val;
       if (defined $val and defined *ENTRY{CODE}){
 	# we found a subroutine
 	my $oldsub;
-	my $full_name="$_\::$key";
+	my $full_name="$package\::$key";
 	for(my $i=0;$i<@$arg;$i+=2){
-	  my ($filter,$wrapper)=($arg[$i],$arg[$i+1]);
-	  if($arg[0]->($key)){
+	  my ($filter,$wrapper)=($arg->[$i],$arg->[$i+1]);
+	  if($filter->($key)){
 	    $oldsub //= &_make_cref($full_name);
 	    {local($^W);
 	     no warnings;
