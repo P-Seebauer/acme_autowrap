@@ -14,7 +14,8 @@ use Carp qw (croak carp);
 use Module::Runtime qw(require_module);
 
 my %packages;
-my $DEBUG = $ENV{ DEBUG };
+my $DEBUG;
+BEGIN{$DEBUG = defined $ENV{ DEBUG } and $ENV{ DEBUG } eq 'AUTOWRAP';}
 
 sub DEBUG($) {
   carp($_[0]) if $DEBUG;
@@ -41,8 +42,8 @@ ERR
     if (ref $wrapper eq 'CODE') {
       $w_sub = ACME::Autowrap::Wrapper->new($wrapper);
     } elsif (ref $wrapper eq '') {
-      require_module "ACME::Autowrap::${wrapper}";
-      $w_sub = "ACME::Autowrap::${wrapper}"->new();
+      require_module $wrapper;
+      $w_sub = "${wrapper}"->new();
     }
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
@@ -51,23 +52,24 @@ ERR
   $packages{ (caller)[0] } = \@subs;
 } ## end sub import
 
+
 INIT {
   my %functions;
-  while (my ($package, $arg) = each %packages) {
+  while (my ($package, $filter_wrappers) = each %packages) {
     no strict 'refs';
     while (my ($key, $val) = each %{ *{ "$package\::" } }) {
 
       # iterate over the symboltable of that package
       local *ENTRY = $val;
       if (defined $val and defined *ENTRY{ CODE }) {
-
         # we found a subroutine
         my $full_name = "$package\::$key";
-        for (my $i = 0 ; $i < @$arg ; $i+=2) {
-          my ($filter, $wrapper) = ($arg->[$i], $arg->[$i + 1]);
+        for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
+          my ($filter, $wrapper) = ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
           if ($filter->($key)) {
             my $oldsub = *{ $full_name }{ CODE };
             if ($wrapper->is_run_time_wrap) {
+	      DEBUG "replacing subroutine $full_name";
               local ($^W);    # redefined subroutine...
               no warnings;
               *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
@@ -85,5 +87,7 @@ package ACME::Autowrap::Wrapper;
 sub is_run_time_wrap {1}
 sub new              {bless $_[1], $_[0]}
 sub wrap             {(shift)->(@_)}
+
+
 
 "oh yeah, that's a nice package";
