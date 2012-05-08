@@ -40,15 +40,15 @@ ERR
       unless defined $f_sub;
 
     if (ref $wrapper eq 'CODE') {
-      $w_sub = ACME::Autowrap::Wrapper->new($wrapper);
-    } elsif (ref $wrapper eq '') {
-      require_module $wrapper;
-      $w_sub = "${wrapper}"->new();
-      foreach (qw|wrap is_run_time_wrap|) {
-        croak "the class you provided doesn't provide the methdod `$_'\n"
-          . " eventually you should overwrite `can' properly (see UNIVERSAL-man page)"
-          unless $w_sub->can($_);
-      }
+      $w_sub = $wrapper;
+##     } elsif (ref $wrapper eq '') {
+##       require_module $wrapper;
+##       $w_sub = "${wrapper}"->new();
+##       foreach (qw|wrap is_run_time_wrap|) {
+##         croak "the class you provided doesn't provide the methdod `$_'\n"
+##           . " eventually you should overwrite `can' properly (see UNIVERSAL-man page)"
+##           unless $w_sub->can($_);
+##       }
     }
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
@@ -62,7 +62,7 @@ INIT {
     no strict 'refs';
     while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
 
-      # iterate over the symboltable of that package
+      # iterate over the symboltable
       local *ENTRY = $val;
       if (defined $val and defined *ENTRY{ CODE }) {
 
@@ -73,24 +73,20 @@ INIT {
             ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
           if ($filter->($symbol_table_key)) {
             my $oldsub = *{ $full_name }{ CODE };
-            if ($wrapper->is_run_time_wrap) {
-              DEBUG "replacing subroutine $full_name";
-              local ($^W);    # redefined subroutine...
-              no warnings;
-              *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
-            } else {
-              $wrapper->wrap($full_name, $val, $oldsub);
-            }
+##            if ($wrapper->is_run_time_wrap) {
+            DEBUG "replacing subroutine $full_name";
+            local ($^W);    # redefined subroutine...
+            no warnings;
+            *{ $full_name } = sub {$wrapper->($oldsub, @_)};
+##	    *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
+##             } else {
+##               $wrapper->wrap($full_name, $val, $oldsub);
+##             }
           }
         }
       } ## end if (defined $val and defined...)
-    } ## end while (my ($key, $val) = ...)
+    } ## end while (my ($symbol_table_key...))
   } ## end while (my ($package, $filter_wrappers...))
 } ## end INIT
-
-package ACME::Autowrap::Wrapper;
-sub is_run_time_wrap {1}
-sub new              {bless $_[1], $_[0]}
-sub wrap             {(shift)->(@_)}
 
 "oh yeah, that's a nice package";
