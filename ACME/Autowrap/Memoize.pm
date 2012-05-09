@@ -1,11 +1,12 @@
 package ACME::Autowrap::Memoize;
+
+use base ACME::Autowrap::Wrapper;
 use Memoize;
 
-sub is_run_time_wrap{$_[0]->{run_time_wrap}}
+sub is_run_time_wrap{0}
 sub wrap{memoize $_[1]}
 sub new {
-  my($package) = shift;
-  my $self = {run_time_wrap=>0};
+  my($package, $self) = (shift,{});
   return bless($self,$package);
 }
 

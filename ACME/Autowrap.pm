@@ -41,14 +41,12 @@ ERR
 
     if (ref $wrapper eq 'CODE') {
       $w_sub = $wrapper;
-##     } elsif (ref $wrapper eq '') {
-##       require_module $wrapper;
-##       $w_sub = "${wrapper}"->new();
+    } else {
+      $w_sub = $wrapper;
 ##       foreach (qw|wrap is_run_time_wrap|) {
 ##         croak "the class you provided doesn't provide the methdod `$_'\n"
 ##           . " eventually you should overwrite `can' properly (see UNIVERSAL-man page)"
 ##           unless $w_sub->can($_);
-##       }
     }
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
@@ -72,16 +70,16 @@ INIT {
           my ($filter, $wrapper) =
             ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
           if ($filter->($symbol_table_key)) {
-            my $oldsub = *{ $full_name }{ CODE };
-##            if ($wrapper->is_run_time_wrap) {
-            DEBUG "replacing subroutine $full_name";
             local ($^W);    # redefined subroutine...
             no warnings;
-            *{ $full_name } = sub {$wrapper->($oldsub, @_)};
-##	    *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
-##             } else {
-##               $wrapper->wrap($full_name, $val, $oldsub);
-##             }
+            my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
+            if (ref $wrapper eq 'CODE') {
+              *{ $full_name } = sub {$wrapper->($oldsub, @_)};
+            } elsif ($wrapper->is_run_time_wrap) {
+              *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
+            } else {
+              $wrapper->wrap($full_name, $val, $oldsub);
+            }
           }
         }
       } ## end if (defined $val and defined...)
