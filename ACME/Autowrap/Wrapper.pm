@@ -6,15 +6,17 @@ package ACME::Autowrap::Wrapper;
    This is just a role module for a Autowrap::Wrapper.
 
 =cut
+
+sub is_runtime_wrapper{1};
+sub wrap;
+
 BEGIN{
+  # insert the wrap-method with a ... operator
    eval <<YADA_CODE if $^V>=5.11.0
-   sub is_runtime_wrapper {...};
    sub wrap{...};
 YADA_CODE
   }
 
-sub is_runtime_wrapper{1};
-sub wrap;
 
 
 1;
