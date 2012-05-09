@@ -1,7 +1,9 @@
-use Test::More tests => 2;
-use 5.01;
+use Test::More tests => 3;
 
-use ACME::Autowrap qr/^one/ => sub {my $old = shift; $old->(@_) . "one"};
+BEGIN {
+  use_ok(ACME::Autowrap, qr/^one/ => sub {my $old = shift; $old->(@_) . "one"}
+    );
+}
 
 sub one_modified {$_[0]}
 sub not_modified {$_[0]}

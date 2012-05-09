@@ -1,11 +1,12 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 use 5.01;
 
-use ACME::Autowrap (
-  sub {$_[0] =~ /one$/} => sub {my $old = shift; $old->(@_) . "one"},
-  \&sub_two => sub {my $old = shift; $old->(@_) . "two"}
-);
-
+BEGIN {
+  use_ok(ACME::Autowrap,
+    sub {$_[0] =~ /one$/} => sub {my $old = shift; $old->(@_) . "one"},
+    \&sub_two => sub {my $old = shift; $old->(@_) . "two"}
+    );
+}
 sub sub_two {$_[0] =~ /^two/;}
 
 sub nice_one {$_[0]}
