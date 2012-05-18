@@ -13,10 +13,10 @@ use warnings;
 use Carp qw (croak carp);
 use Module::Runtime qw(require_module);
 
-my %packages;
+my (%packages, @all_replaced_subs);
 my $DEBUG;
-BEGIN {$DEBUG = defined $ENV{ DEBUG } and $ENV{ DEBUG } eq 'AUTOWRAP';}
 
+BEGIN {$DEBUG = defined $ENV{ DEBUG } and $ENV{ DEBUG } eq 'AUTOWRAP';}
 sub DEBUG($) {
   carp($_[0]) if $DEBUG;
 }
@@ -75,10 +75,13 @@ INIT {
             no warnings;
             local ($^W);    # redefined subroutine...
             my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
+	    my $newsub;
             if (ref $wrapper eq 'CODE') {
-              *{ $full_name } = sub {$wrapper->($oldsub, @_)};
+              *{ $full_name } = $newsub = sub {$wrapper->($oldsub, @_)};
+	      push @all_replaced_subs, $oldsub, $newsub;
             } elsif ($wrapper->is_run_time_wrap) {
-              *{ $full_name } = sub {$wrapper->wrap($oldsub, @_)};
+              *{ $full_name } = $newsub = sub {$wrapper->wrap($oldsub, @_)};
+	      push @all_replaced_subs, $oldsub, $newsub;
             } else {
               $wrapper->wrap($full_name, $val, $oldsub);
             }
