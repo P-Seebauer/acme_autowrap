@@ -55,6 +55,8 @@ ERR
   $packages{ (caller)[0] } = \@subs;
 } ## end sub import
 
+
+# Prototypes don't work yet
 INIT {
   while (my ($package, $filter_wrappers) = each %packages) {
     no strict 'refs';
@@ -70,8 +72,8 @@ INIT {
           my ($filter, $wrapper) =
             ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
           if ($filter->($symbol_table_key)) {
-            local ($^W);    # redefined subroutine...
             no warnings;
+            local ($^W);    # redefined subroutine...
             my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
             if (ref $wrapper eq 'CODE') {
               *{ $full_name } = sub {$wrapper->($oldsub, @_)};
@@ -88,3 +90,9 @@ INIT {
 } ## end INIT
 
 "oh yeah, that's a nice package";
+
+
+=head2 BUGS
+   no ACME::Autowrap doesn't work
+
+=cut
