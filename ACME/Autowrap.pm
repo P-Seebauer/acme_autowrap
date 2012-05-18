@@ -11,7 +11,10 @@ use 5.01;
 use strict;
 use warnings;
 use Carp qw (croak carp);
-use Module::Runtime qw(require_module);
+#use Module::Runtime qw(require_module);
+
+use Data::Dumper;
+
 
 my (%packages, @all_replaced_subs);
 my $DEBUG;
@@ -31,13 +34,12 @@ sub replace_subroutine (&$$) {
 ##  *{$obj->{name}} = $obj->{new} # why isn't that working??
 }
 
-sub unimport{
-  
-}
+sub unimport{$^H{+__PACKAGE__}=0}
 
 
 sub import {
   DEBUG shift;    # remove the package name from argument list
+  $^H{+__PACKAGE__}='yay';
   carp <<ERR if @_ % 2;
 Odd number of arguments to ACME::Autowrap supplied - last one will be ignored
 ERR
@@ -58,10 +60,6 @@ ERR
       $w_sub = $wrapper;
     } else {
       $w_sub = $wrapper;
-##       foreach (qw|wrap is_run_time_wrap|) {
-##         croak "the class you provided doesn't provide the methdod `$_'\n"
-##           . " eventually you should overwrite `can' properly (see UNIVERSAL-man page)"
-##           unless $w_sub->can($_);
     }
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
@@ -90,7 +88,7 @@ INIT {
             my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
 	    my $newsub;
             if (ref $wrapper eq 'CODE') {
-              replace_subroutine {$wrapper->($oldsub, @_)}     $full_name, $oldsub;
+		$wrapper->($oldsub, @_)}     $full_name, $oldsub;
             } elsif ($wrapper->is_run_time_wrap) {
               replace_subroutine {$wrapper->wrap($oldsub, @_)} $full_name, $oldsub;
             } else {
@@ -108,5 +106,18 @@ INIT {
 
 =head2 BUGS
    no ACME::Autowrap doesn't work
+
+=head2 Author
+   Patrick Seebauer
+
+
+=head2 COPYRIGHT
+
+Copyright (C) 2012 by Patrick Seebauer
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
