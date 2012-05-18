@@ -72,16 +72,12 @@ INIT {
           my ($filter, $wrapper) =
             ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
           if ($filter->($symbol_table_key)) {
-            no warnings;
-            local ($^W);    # redefined subroutine...
             my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
 	    my $newsub;
             if (ref $wrapper eq 'CODE') {
-              *{ $full_name } = $newsub = sub {$wrapper->($oldsub, @_)};
-	      push @all_replaced_subs, $oldsub, $newsub;
+              replace_subroutine($oldsub, sub {$wrapper->($oldsub, @_)}, $full_name);
             } elsif ($wrapper->is_run_time_wrap) {
-              *{ $full_name } = $newsub = sub {$wrapper->wrap($oldsub, @_)};
-	      push @all_replaced_subs, $oldsub, $newsub;
+              replace_subroutine ($oldsub, sub {$wrapper->wrap($oldsub, @_)}, $full_name);
             } else {
               $wrapper->wrap($full_name, $val, $oldsub);
             }
@@ -93,6 +89,15 @@ INIT {
 } ## end INIT
 
 "oh yeah, that's a nice package";
+
+sub replace_subroutine {
+  no strict 'refs';
+  my ($oldsub, $newsub, $full_name) = @_;
+  no warnings;
+  local ($^W);    # redefined subroutine...
+  push @all_replaced_subs, $oldsub, $newsub;
+  *{ $full_name } = $newsub;
+}
 
 
 =head2 BUGS
