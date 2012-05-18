@@ -21,6 +21,21 @@ sub DEBUG($) {
   carp($_[0]) if $DEBUG;
 }
 
+sub replace_subroutine (&$$) {
+  no strict 'refs';
+  my $obj->{qw|new name old|} = @_;
+  no warnings;
+  local ($^W);    # redefined subroutine...
+  push @all_replaced_subs, $obj;
+  *{$_[1]}=$_[0];
+##  *{$obj->{name}} = $obj->{new} # why isn't that working??
+}
+
+sub unimport{
+  
+}
+
+
 sub import {
   DEBUG shift;    # remove the package name from argument list
   carp <<ERR if @_ % 2;
@@ -75,9 +90,9 @@ INIT {
             my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
 	    my $newsub;
             if (ref $wrapper eq 'CODE') {
-              replace_subroutine($oldsub, sub {$wrapper->($oldsub, @_)}, $full_name);
+              replace_subroutine {$wrapper->($oldsub, @_)}     $full_name, $oldsub;
             } elsif ($wrapper->is_run_time_wrap) {
-              replace_subroutine ($oldsub, sub {$wrapper->wrap($oldsub, @_)}, $full_name);
+              replace_subroutine {$wrapper->wrap($oldsub, @_)} $full_name, $oldsub;
             } else {
               $wrapper->wrap($full_name, $val, $oldsub);
             }
@@ -89,15 +104,6 @@ INIT {
 } ## end INIT
 
 "oh yeah, that's a nice package";
-
-sub replace_subroutine {
-  no strict 'refs';
-  my ($oldsub, $newsub, $full_name) = @_;
-  no warnings;
-  local ($^W);    # redefined subroutine...
-  push @all_replaced_subs, $oldsub, $newsub;
-  *{ $full_name } = $newsub;
-}
 
 
 =head2 BUGS
