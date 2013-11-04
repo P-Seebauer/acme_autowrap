@@ -16,8 +16,9 @@ my $builder = Module::Build->new(
         'Test::More' => 0,
     },
     requires => {
-		 Carp => 1.22,
-		 true => 0.16,
+		 Carp    => 1.22,
+		 true    => 0.16,
+		 Memoize => 1.02,
     },
     add_to_cleanup     => [ 'ACME-Autowrap-*' ],
     create_makefile_pl => 'traditional',

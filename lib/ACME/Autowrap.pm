@@ -1,4 +1,5 @@
 package ACME::Autowrap;
+# Abstract: Automatically wrap subroutienes
 
 use 5.01;
 use strict;
@@ -33,9 +34,8 @@ sub DEBUG($) {
 
 sub replace_subroutine (&$$) {
   no strict 'refs';
+  no warnings 'redefine';
   my $obj->{qw|new name old|} = @_;
-  no warnings;
-  local ($^W);    # redefined subroutine...
   push @all_replaced_subs, $obj;
   *{$_[1]}=$_[0];
 ##  *{$obj->{name}} = $obj->{new} # why isn't that working??
@@ -54,11 +54,10 @@ ERR
   for (my $i = 0 ; $i < @_ ; $i+=2) {
     my ($filter, $wrapper) = @_[$i, $i + 1];
     my ($f_sub, $w_sub);
-    given (ref $filter) {
-      when ('CODE') {$f_sub = $filter}
-      when ('Regexp') {
-        $f_sub = sub {$_[0] =~ $filter}
-      }
+    if (ref $filter eq 'CODE') {
+      $f_sub = $filter
+    } elsif (ref $filter eq 'Regexp') {
+      $f_sub = sub {$_[0] =~ $filter}
     }
     croak "Didn't know what to do with your filter `$filter'"
       unless defined $f_sub;
@@ -113,23 +112,30 @@ __END__
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
+  use ACME::Autowrap (qr/aref$/ => sub{my $old=shift; [$old->(@_)]},
+                      sub{15 < length $_[0]} => sub{(shift)->(@_).'long subname'});
 
-Perhaps a little code snippet.
+  sub aref_sub{ 
+    return qw/one two three/;
+  }# returns that in an Array reference.
 
-    use ACME::Autowrap;
+  sub very_long_subroutine_name{ 
+    return 'this is a ';
+  }#returns "this is a long subname".
 
-    my $foo = ACME::Autowrap->new();
-    ...
-
-=head1 AUTHOR
-
-Patrick Seebauer, C<< <patpatpat at cpan.org> >>
 
 =head1 BUGS
 
-   C<no ACME::Autowrap> doesn't work
+=over 4
 
+=item C<no ACME::Autowrap> doesn't work
+
+=item Prototypes aren't supported 
+
+=item There might be a problem with wrapping constant subroutines (those with empty prototypes)
+
+
+=back
 
 Please report any bugs or feature requests to L<https://github.com/P-Seebauer/acme_autowrap>.
 
@@ -210,10 +216,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 
-=head2 Author
-   Patrick Seebauer
-
-
 =head2 COPYRIGHT
 
 Copyright (C) 2012 by Patrick Seebauer
@@ -222,5 +224,11 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut
+
+=head1 AUTHOR
+
+Patrick Seebauer, C<< <patpatpat at cpan.org> >>
 
 =cut
