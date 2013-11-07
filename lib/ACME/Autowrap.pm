@@ -1,5 +1,5 @@
 package ACME::Autowrap;
-# Abstract: Automatically wrap subroutienes
+# ABSTRACT: Automatically wrap subroutienes
 
 use 5.01;
 use strict;
@@ -14,11 +14,11 @@ ACME::Autowrap
 
 =head1 VERSION
 
-Version 0.01
+Version 0.001
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = 0.001;
 
 
 #use Module::Runtime qw(require_module);

@@ -6,7 +6,7 @@ BEGIN {
   use_ok(ACME::Autowrap::Memoize);
 
   use_ok(ACME::Autowrap,
-    sub {$_[0] !~ /no$/ and $_[0] =~ /mem/} => ACME::Autowrap::Memoize->new());
+    sub {$_[0] !~ /^no/ and $_[0] =~ /mem/} => ACME::Autowrap::Memoize->new());
 }
 
 sub mem()    {state $foo; $foo++}
