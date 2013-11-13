@@ -7,16 +7,8 @@ package ACME::Autowrap::Wrapper;
 
 =cut
 
-sub is_runtime_wrapper{1};
-sub wrap;
+use true;
+use Role::Tiny;
 
-BEGIN{
-  # insert the wrap-method with a ... operator
-   eval <<YADA_CODE if $^V>=5.11.0
-   sub wrap{...};
-YADA_CODE
-  }
+requires (qw|wrap new|);
 
-
-
-1;

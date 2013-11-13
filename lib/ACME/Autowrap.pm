@@ -1,12 +1,13 @@
 package ACME::Autowrap;
 # ABSTRACT: Automatically wrap subroutienes
-
-use 5.01;
 use strict;
 use warnings;
 use true;
-use Carp qw (croak carp);
-
+use 5.01;
+use Devel::Pragma ':all';
+use B::Hooks::EndOfScope;
+use 5.01;
+use Carp qw|carp croak|;
 
 =head1 NAME
 
@@ -21,36 +22,13 @@ Version 0.001
 our $VERSION = 0.001;
 
 
-#use Module::Runtime qw(require_module);
-
-
-my (%packages, @all_replaced_subs);
-my $DEBUG;
-
-BEGIN {$DEBUG = defined $ENV{ DEBUG } and $ENV{ DEBUG } eq 'AUTOWRAP';}
-sub DEBUG($) {
-  carp($_[0]) if $DEBUG;
-}
-
-sub replace_subroutine (&$$) {
-  no strict 'refs';
-  no warnings 'redefine';
-  my $obj->{qw|new name old|} = @_;
-  push @all_replaced_subs, $obj;
-  *{$_[1]}=$_[0];
-##  *{$obj->{name}} = $obj->{new} # why isn't that working??
-}
-
 sub unimport{$^H{+__PACKAGE__}=0}
-
-
 sub import {
-  DEBUG shift;    # remove the package name from argument list
-  $^H{+__PACKAGE__}='yay';
+  my $p = shift;
   carp <<ERR if @_ % 2;
 Odd number of arguments to ACME::Autowrap supplied - last one will be ignored
 ERR
-  my @subs;
+  my (@subs, %packages);
   for (my $i = 0 ; $i < @_ ; $i+=2) {
     my ($filter, $wrapper) = @_[$i, $i + 1];
     my ($f_sub, $w_sub);
@@ -63,49 +41,70 @@ ERR
       unless defined $f_sub;
 
     if (ref $wrapper eq 'CODE') {
-      $w_sub = $wrapper;
-    } else {
-      $w_sub = $wrapper;
+      use ACME::Autowrap::DefaultWrapper;
+      $w_sub = ACME::Autowrap::DefaultWrapper->new($wrapper);
+    } elsif ($wrapper->does('ACME::Autowrap::WrapperRole')) {
+      $w_sub = $wrapper->new;
+    } elsif ((my $w_name = "ACME::Autowrap::$wrapper")->does('ACME::Autowrap::WrapperRole')) {
+      $w_sub = $w_name->new;
     }
+
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
     push @subs, $f_sub, $w_sub;
-  } ## end for (my $i = 0 ; $i < @_...)
+  }				## end for (my $i = 0 ; $i < @_...)
   $packages{ (caller)[0] } = \@subs;
-} ## end sub import
+  on_scope_end {
+    while (my ($package, $filter_wrappers) = each %packages) {
+      no strict 'refs';
+      while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
+	local *ENTRY = $val;
+	if (defined $val and defined *ENTRY{ CODE }) {
+	  for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
+	    my ($filter, $wrapper) = ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
+	    if ($filter->($symbol_table_key)) {
+	      my ($full_name) = "$package\::$symbol_table_key";
+	      my $oldsub = *{$full_name}{CODE};
+	      $wrapper->wrap($full_name, $val, $oldsub);
+	    }
+	  }
+	}
+      }
+    }
+  };
+}
 
-
-# Prototypes don't work yet
-INIT {
-  while (my ($package, $filter_wrappers) = each %packages) {
-    no strict 'refs';
-    while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
-
-      # iterate over the symboltable
-      local *ENTRY = $val;
-      if (defined $val and defined *ENTRY{ CODE }) {
-
-        # we found a subroutine
-        my $full_name = "$package\::$symbol_table_key";
-        for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
-          my ($filter, $wrapper) =
-            ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
-          if ($filter->($symbol_table_key)) {
-            my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
-	    my $newsub;
-            if (ref $wrapper eq 'CODE') {
-		replace_subroutine{$wrapper->($oldsub, @_)}     $full_name, $oldsub;
-            } elsif ($wrapper->is_run_time_wrap) {
-              replace_subroutine {$wrapper->wrap($oldsub, @_)} $full_name, $oldsub;
-            } else {
-              $wrapper->wrap($full_name, $val, $oldsub);
-            }
-          }
-        }
-      } ## end if (defined $val and defined...)
-    } ## end while (my ($symbol_table_key...))
-  } ## end while (my ($package, $filter_wrappers...))
-} ## end INIT
+    ##  
+    ##  # Prototypes don't work yet
+    ##  INIT {
+    ##    while (my ($package, $filter_wrappers) = each %packages) {
+    ##      no strict 'refs';
+    ##      while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
+    ##  
+    ##        # iterate over the symboltable
+    ##        local *ENTRY = $val;
+    ##        if (defined $val and defined *ENTRY{ CODE }) {
+    ##          # we found a subroutine
+    ##          my $full_name = "$package\::$symbol_table_key";
+    ##          for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
+    ##            my ($filter, $wrapper) =
+    ##              ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
+    ##            if ($filter->($symbol_table_key)) {
+    ##              my $oldsub = *{ $full_name }{ CODE };  # TODO: change that.
+    ##  	    my $newsub;
+    ##              if (ref $wrapper eq 'CODE') {
+    ##  		replace_subroutine{$wrapper->($oldsub, @_)}     $full_name, $oldsub;
+    ##              } elsif ($wrapper->is_run_time_wrap) {
+    ##                replace_subroutine {$wrapper->wrap($oldsub, @_)} $full_name, $oldsub;
+    ##              } else {
+    ##                $wrapper->wrap($full_name, $val, $oldsub);
+    ##              }
+    ##            }
+    ##          }
+    ##        } ## end if (defined $val and defined...)
+    ##      } ## end while (my ($symbol_table_key...))
+    ##    } ## end while (my ($package, $filter_wrappers...))
+    ##  } ## end INIT
 
 __END__
 
