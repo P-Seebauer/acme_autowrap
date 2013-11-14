@@ -1,11 +1,12 @@
 package ACME::Autowrap;
-# ABSTRACT: Automatically wrap subroutienes
+# ABSTRACT: Automatically wrap subroutines
 use strict;
 use warnings;
 use true;
-use 5.01;
-use Devel::Pragma ':all';
+#use Devel::Pragma ':all';
 use B::Hooks::EndOfScope;
+use match::smart 'match';
+use Scalar::Util 1.02 'blessed';
 
 use Carp qw|carp croak|;
 
@@ -29,13 +30,16 @@ ERR
     if (ref $wrapper eq 'CODE') {
       use ACME::Autowrap::DefaultWrapper;
       $w_sub = ACME::Autowrap::DefaultWrapper->new($wrapper);
-    } elsif ($wrapper->does('ACME::Autowrap::Wrapper')) {
-      $w_sub = $wrapper->new;
-    } elsif ((my $w_name = "ACME::Autowrap::Wrapper::$wrapper")->does('ACME::Autowrap::WrapperRole')) {
-      $w_sub = $w_name->new;
+    } elsif($wrapper->does('ACME::Autowrap::Wrapper')) {
+      $w_sub = blessed $wrapper ? $wrapper : $wrapper->new;
+    }# elsif ((my $w_name = "ACME::Autowrap::Wrapper::$wrapper")->does('ACME::Autowrap::Wrapper')) {
+     # $w_sub = $w_name->new;
+    #}
+
+    unless (defined $w_sub) {
+      croak "Didn't know what to do with your wrapper `$wrapper', ignoring it";
+      next
     }
-    croak "Didn't know what to do with your wrapper `$wrapper'"
-      unless defined $w_sub;
     push @{$packages{ (caller)[0] }}, $filter, $w_sub;
   }				## end for (my $i = 0 ; $i < @_...)
   
@@ -43,11 +47,12 @@ ERR
     while (my ($package, $filter_wrappers) = each %packages) {
       no strict 'refs';
       while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
+	next if grep {match($symbol_table_key ,$_)} @excluded;
 	local *ENTRY = $val;
 	if (defined $val and defined *ENTRY{ CODE } ) {
 	  for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
 	    my ($filter, $wrapper) = ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
-	    if ($symbol_table_key ~~ $filter) {
+	    if (match($symbol_table_key,$filter)) {
 	      my ($full_name) = "$package\::$symbol_table_key";
 	      my $oldsub = *{$full_name}{CODE};
 	      $wrapper->wrap($full_name, $oldsub);
@@ -105,10 +110,10 @@ Version 0.001
 
 =head1 SYNOPSIS
 
-  use ACME::Autowrap (qr/aref$/ => sub{my $old=shift; [$old->(@_)]},
+  use ACME::Autowrap (qr/^aref/ => sub{my $old=shift; [$old->(@_)]},
                       sub{15 < length $_[0]} => sub{(shift)->(@_).'long subname'});
 
-  sub aref_sub{ 
+  sub aref_sub{
     return qw/one two three/;
   }# returns that in an Array reference.
 
@@ -116,6 +121,28 @@ Version 0.001
     return 'this is a ';
   }#returns "this is a long subname".
 
+
+=head1 DESCRIPTION {
+
+This module simply wraps your subroutines into whatever you supply to them. 
+The syntax for the C<use>-directive:
+
+   use Acme::Autowrap (<Filter> => <Wrapper>);
+
+If an subroutine name matches to I<Filter> as if L<match::simple/DESCRIPTION|match::simple's smart-match) would have been applied,
+one of the following things happen (in that order):
+
+=over 4
+
+=item If it is a code reference, the code reference will be called, with your subroutine as first argument
+
+=item If it is an object that does the role ACME::Autowrap::Wrapper it will be used as a wrapper and the C<wrap>-method of that role will be applied to your subroutine
+
+=item If it is a package name of a package that does that role, a new object will be created with a I<new> method with no arguments in the constructor.
+
+
+To write your own wrappers, I recommend you to use the L<ACME::Autowrap::RuntimeWrapper|ACME::Autowrap::RuntimeWrapper> role. If you want to write your own wrapping procedure, use the role L<ACME::Autowrap::RuntimeWrapper|ACME::Autowrap::RuntimeWrapper>.
+}
 
 =head1 BUGS
 
@@ -126,6 +153,8 @@ Version 0.001
 =item Prototypes aren't supported 
 
 =item There might be a problem with wrapping constant subroutines (those with empty prototypes)
+
+=item Oh yeah, and if warnings that your symbol table isn't numeric bother you ... don't use filters that are numeric, what are you trying to do anyway?
 
 
 =back
