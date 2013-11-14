@@ -11,6 +11,6 @@ sub new {
 }
 
 sub wrap_runtime {
-  my ($s, $old) = shift;
+  my ($s) = shift;
   $s->(@_);
 }
