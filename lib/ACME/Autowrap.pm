@@ -11,24 +11,20 @@ use Carp qw|carp croak|;
 
 our $VERSION = 0.001;
 
-
 sub unimport{$^H{+__PACKAGE__}=0}
 sub import {
   my $p = shift;
   carp <<ERR if @_ % 2;
 Odd number of arguments to ACME::Autowrap supplied - last one will be ignored
 ERR
-  my (@subs, %packages);
+  my (@excluded, %packages);
   for (my $i = 0 ; $i < @_ ; $i+=2) {
     my ($filter, $wrapper) = @_[$i, $i + 1];
-    my ($f_sub, $w_sub);
-    if (ref $filter eq 'CODE') {
-      $f_sub = $filter
-    } elsif (ref $filter eq 'Regexp') {
-      $f_sub = sub {$_[0] =~ $filter}
+    my ($w_sub);
+    if ($filter eq '-exclude'){
+      push @excluded, $wrapper;
+      next;
     }
-    croak "Didn't know what to do with your filter `$filter'"
-      unless defined $f_sub;
 
     if (ref $wrapper eq 'CODE') {
       use ACME::Autowrap::DefaultWrapper;
@@ -38,21 +34,20 @@ ERR
     } elsif ((my $w_name = "ACME::Autowrap::Wrapper::$wrapper")->does('ACME::Autowrap::WrapperRole')) {
       $w_sub = $w_name->new;
     }
-
     croak "Didn't know what to do with your wrapper `$wrapper'"
       unless defined $w_sub;
-    push @subs, $f_sub, $w_sub;
+    push @{$packages{ (caller)[0] }}, $filter, $w_sub;
   }				## end for (my $i = 0 ; $i < @_...)
-  $packages{ (caller)[0] } = \@subs;
+  
   on_scope_end {
     while (my ($package, $filter_wrappers) = each %packages) {
       no strict 'refs';
       while (my ($symbol_table_key, $val) = each %{ *{ "$package\::" } }) {
 	local *ENTRY = $val;
-	if (defined $val and defined *ENTRY{ CODE }) {
+	if (defined $val and defined *ENTRY{ CODE } ) {
 	  for (my $i = 0 ; $i < @$filter_wrappers ; $i+=2) {
 	    my ($filter, $wrapper) = ($filter_wrappers->[$i], $filter_wrappers->[$i + 1]);
-	    if ($filter->($symbol_table_key)) {
+	    if ($symbol_table_key ~~ $filter) {
 	      my ($full_name) = "$package\::$symbol_table_key";
 	      my $oldsub = *{$full_name}{CODE};
 	      $wrapper->wrap($full_name, $oldsub);
