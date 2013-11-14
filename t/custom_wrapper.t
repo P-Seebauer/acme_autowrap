@@ -1,24 +1,31 @@
-use Moops;
-
-class ::littleRuntimeWrapper{
+BEGIN{
+  package littleRuntimeWrapper;
+  use Role::Tiny::With;
   with 'ACME::Autowrap::RuntimeWrapper';
 
-  method wrap_runtime{
+  sub wrap_runtime{
+    shift;
     my $old = shift;
     "<b>".$old->(@_)."</b>"
   }
+
+  sub new {return bless {}}
+
+
+  package littleCompileTimeWrapper;
+  use Role::Tiny::With;
+  with 'ACME::Autowrap::Wrapper';
+  sub new {return bless {}}
+  sub wrap{
+    shift;
+    my ($name,$old) = @_;
+    no strict 'refs';
+    no warnings 'redefine';
+    *{$name}=sub {"called: ".$old->(@_)};
+  }
 }
 
-  class ::littleCompileTimeWrapper {
-    with 'ACME::Autowrap::Wrapper';
-    method wrap{
-      my ($name,$old) = @_;
-      no strict 'refs';
-      no warnings 'redefine';
-      *{$name}=sub {"called: ".$old->(@_)};
-    }
-}
-
+package main;
 use Test::More tests => 4;
 use 5.01;
 
