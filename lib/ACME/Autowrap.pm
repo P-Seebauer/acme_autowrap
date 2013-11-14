@@ -6,18 +6,8 @@ use true;
 use 5.01;
 use Devel::Pragma ':all';
 use B::Hooks::EndOfScope;
-use 5.01;
+
 use Carp qw|carp croak|;
-
-=head1 NAME
-
-ACME::Autowrap
-
-=head1 VERSION
-
-Version 0.001
-
-=cut
 
 our $VERSION = 0.001;
 
@@ -43,9 +33,9 @@ ERR
     if (ref $wrapper eq 'CODE') {
       use ACME::Autowrap::DefaultWrapper;
       $w_sub = ACME::Autowrap::DefaultWrapper->new($wrapper);
-    } elsif ($wrapper->does('ACME::Autowrap::WrapperRole')) {
+    } elsif ($wrapper->does('ACME::Autowrap::Wrapper')) {
       $w_sub = $wrapper->new;
-    } elsif ((my $w_name = "ACME::Autowrap::$wrapper")->does('ACME::Autowrap::WrapperRole')) {
+    } elsif ((my $w_name = "ACME::Autowrap::Wrapper::$wrapper")->does('ACME::Autowrap::WrapperRole')) {
       $w_sub = $w_name->new;
     }
 
@@ -65,7 +55,7 @@ ERR
 	    if ($filter->($symbol_table_key)) {
 	      my ($full_name) = "$package\::$symbol_table_key";
 	      my $oldsub = *{$full_name}{CODE};
-	      $wrapper->wrap($full_name, $val, $oldsub);
+	      $wrapper->wrap($full_name, $oldsub);
 	    }
 	  }
 	}
@@ -108,6 +98,15 @@ ERR
 
 __END__
 
+
+
+=head1 NAME
+
+ACME::Autowrap
+
+=head1 VERSION
+
+Version 0.001
 
 =head1 SYNOPSIS
 

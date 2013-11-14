@@ -11,7 +11,6 @@ sub new {
 }
 
 sub wrap_runtime {
-  $s = shift;
+  my ($s, $old) = shift;
   $s->(@_);
-##  *{$obj->{name}} = $obj->{new} # why isn't that working??
 }

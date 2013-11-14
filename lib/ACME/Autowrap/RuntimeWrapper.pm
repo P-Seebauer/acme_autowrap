@@ -1,14 +1,12 @@
-package RuntimeWrapper;
-use true;
+package ACME::Autowrap::RuntimeWrapper;
 
 use Role::Tiny;
+use true;
 with 'ACME::Autowrap::Wrapper';
-requires qw"wrap_runtime";
 
 sub wrap{
   my ($s,$name,$old) = @_;
   no strict 'refs';
   no warnings 'redefine';
-  *{$name}=sub {$s->wrap_runtime($old,$name)};
+  *{$name}=sub {$s->wrap_runtime($old, @_)};
 }
-
