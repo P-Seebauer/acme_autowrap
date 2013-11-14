@@ -11,8 +11,7 @@ sub wrap{
 
 sub new {
   my $package = shift;
-  my $$self = '';
-  return bless($self,$package);
+  return bless({},$package);
 }
 
 1;

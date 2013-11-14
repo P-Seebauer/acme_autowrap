@@ -2,12 +2,9 @@ use Test::More tests => 6;
 
 use 5.01;
 
-BEGIN {
-  use_ok(ACME::Autowrap::Memoize);
+use ACME::Autowrap::Wrapper::Memoize;
+use ACME::Autowrap (sub {$_[0] !~ /^no/ and $_[0] =~ /mem/} => ACME::Autowrap::Wrapper::Memoize);
 
-  use_ok(ACME::Autowrap,
-    sub {$_[0] !~ /^no/ and $_[0] =~ /mem/} => ACME::Autowrap::Memoize->new());
-}
 
 sub mem()    {state $foo; $foo++}
 sub no_mem() {state $foo; $foo++}
